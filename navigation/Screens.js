@@ -9,8 +9,9 @@ import Articles from "../screens/Articles";
 import Beauty from "../screens/Beauty";
 import Cart from "../screens/Cart";
 import AddNewPerson from "../screens/AddNewPerson";
-import PersonalInformation from "../screens/PersnolInformation";
+// import EditNewPerson from "../screens/EditNewPerson";
 import Camera from "../screens/Camera";
+// import Camera1 from "../screens/Camera1";
 import Category from "../screens/Category";
 import Chat from "../screens/Chat";
 // drawer
@@ -30,7 +31,7 @@ import { Notification } from "../components";
 import Pro from "../screens/Pro";
 import Product from "../screens/Product";
 import Profile from "../screens/Profile";
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Register from "../screens/Register";
 import Search from "../screens/Search";
 // settings
@@ -40,6 +41,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { createStackNavigator } from "@react-navigation/stack";
 import ModalScreen from "../screens/ModalScreen";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_Url2 } from "../utils/API";
+import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("screen");
 
@@ -224,36 +228,46 @@ function SettingsStack(props) {
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
       />
-      <Stack.Screen
-        name="PersonalInformation"
-        component={PersonalInformation}
+      {/* <Stack.Screen
+        name="EditNewPerson"
+        component={EditNewPerson}
         options={{
           header: ({ navigation, scene }) => (
             <Header
               back
-              title="Add Visitor"
+              title="Edit Visitor"
               scene={scene}
               navigation={navigation}
             />
           ),
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
-      />
+      /> */}
       <Stack.Screen
         name="Camera"
         component={Camera}
         options={{
           header: ({ navigation, scene }) => (
+            <Header back title="Camera" scene={scene} navigation={navigation} />
+          ),
+          cardStyle: { backgroundColor: "#F8F9FE" },
+        }}
+      />
+      {/* <Stack.Screen
+        name="Camera1"
+        component={Camera1}
+        options={{
+          header: ({ navigation, scene }) => (
             <Header
               back
-              title="Add Visitor"
+              title="Camera1"
               scene={scene}
               navigation={navigation}
             />
           ),
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
-      />
+      /> */}
       <Stack.Screen
         name="ModalScreen"
         component={ModalScreen}
@@ -366,21 +380,21 @@ function ProfileStack(props) {
           cardStyle: { backgroundColor: "#FFFFFF" },
         }}
       />
-      <Stack.Screen
-        name="PersonalInformation"
-        component={PersonalInformation}
+      {/* <Stack.Screen
+        name="EditNewPerson"
+        component={EditNewPerson}
         options={{
           header: ({ navigation, scene }) => (
             <Header
               back
-              title="Add Visitor"
+              title="Edit Visitor"
               scene={scene}
               navigation={navigation}
             />
           ),
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
-      />
+      /> */}
       <Stack.Screen
         name="Camera"
         component={Camera}
@@ -396,6 +410,21 @@ function ProfileStack(props) {
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
       />
+      {/* <Stack.Screen
+        name="Camera1"
+        component={Camera1}
+        options={{
+          header: ({ navigation, scene }) => (
+            <Header
+              back
+              title="Camera1"
+              scene={scene}
+              navigation={navigation}
+            />
+          ),
+          cardStyle: { backgroundColor: "#F8F9FE" },
+        }}
+      /> */}
       <Stack.Screen
         name="ModalScreen"
         component={ModalScreen}
@@ -594,36 +623,46 @@ function HomeStack(props) {
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
       />
-      <Stack.Screen
-        name="PersonalInformation"
-        component={PersonalInformation}
+      {/* <Stack.Screen
+        name="EditNewPerson"
+        component={EditNewPerson}
         options={{
           header: ({ navigation, scene }) => (
             <Header
               back
-              title="Add Visitor"
+              title="Edit Visitor"
               scene={scene}
               navigation={navigation}
             />
           ),
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
-      />
+      /> */}
       <Stack.Screen
         name="Camera"
         component={Camera}
         options={{
           header: ({ navigation, scene }) => (
+            <Header back title="Camera" scene={scene} navigation={navigation} />
+          ),
+          cardStyle: { backgroundColor: "#F8F9FE" },
+        }}
+      />
+      {/* <Stack.Screen
+        name="Camera1"
+        component={Camera1}
+        options={{
+          header: ({ navigation, scene }) => (
             <Header
               back
-              title="Add Visitor"
+              title="Camera1"
               scene={scene}
               navigation={navigation}
             />
           ),
           cardStyle: { backgroundColor: "#F8F9FE" },
         }}
-      />
+      /> */}
       <Stack.Screen
         name="ModalScreen"
         component={ModalScreen}
@@ -702,7 +741,7 @@ function AppStack(props) {
         options={{
           header: ({ navigation, scene }) => (
             <Header
-              title="Profile"
+              title="Logs"
               search
               options
               navigation={navigation}
@@ -745,6 +784,64 @@ function AppStack(props) {
 }
 
 export default function OnboardingStack(props) {
+  const [token, setToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem("@token_resident");
+        if (token !== null) {
+          console.log("Token retrieved successfully Profile:", token);
+          setToken(token); // Set the token in state
+        } else {
+          console.log("Token not found in local storage.");
+        }
+      } catch (error) {
+        console.error("Error retrieving token from local storage:", error);
+      }
+    };
+
+    fetchToken();
+  }, []);
+
+  useEffect(() => {
+    // Function to check token health and redirect accordingly
+    const checkTokenHealth = async () => {
+      try {
+        if (token) {
+          const response = await fetch(`${API_Url2}/token_health_check`, {
+            method: "GET",
+            headers: {
+              "x-access-token": token,
+            },
+          });
+          const data = await response.json();
+          if (response.status === 200 && data.status === 1) {
+            setIsLoading(false);
+            console.log("hello 200");
+          } else if (response.status === 401) {
+            //
+            console.log("hello 401");
+            setIsLoading(true);
+          } else {
+            // Handle other response statuses if needed
+          }
+        } else {
+          // Handle case where token is not found in local storage
+          // Alert.alert("Your session has expired. please login again!!!");
+          setIsLoading(true);
+        }
+      } catch (error) {
+        console.error("Error checking token health:", error);
+      }
+    };
+
+    checkTokenHealth();
+  }, [token]);
+  console.log("he", isLoading);
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -752,13 +849,15 @@ export default function OnboardingStack(props) {
         headerShown: false,
       }}
     >
-      <Stack.Screen
-        name="Onboarding"
-        component={Pro}
-        option={{
-          headerTransparent: true,
-        }}
-      />
+      {isLoading ? (
+        <Stack.Screen
+          name="Onboarding"
+          component={Pro}
+          option={{
+            headerTransparent: true,
+          }}
+        />
+      ) : undefined}
       <Stack.Screen name="App" component={AppStack} />
     </Stack.Navigator>
   );

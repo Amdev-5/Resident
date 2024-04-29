@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "521636805616",
+    "project_id": "residentapppushnotification",
+    "storage_bucket": "residentapppushnotification.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:521636805616:android:f8de986e0e6071111a7b35",
+        "android_client_info": {
+          "package_name": "com.gatebotapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgSg7PCPhj6ofRihH--GEQKZYqtmD1Utc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

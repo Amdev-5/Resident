@@ -50,28 +50,28 @@ const ModalScreen = ({ props }) => {
                 <Text style={styles.key}>Phone Number:</Text>
                 <Text style={styles.value}> {receivedData.phone_number}</Text>
               </Text>
-              <Text style={styles.textbox}>
+              {/* <Text style={styles.textbox}>
                 <Text style={styles.key}>Visiting Place:</Text>
                 <Text style={styles.value}> {receivedData.visiting_place}</Text>
-              </Text>
+              </Text> */}
               <Text style={styles.textbox}>
                 <Text style={styles.key}>Visiting Type:</Text>
                 <Text style={styles.value}> {receivedData.visitor_type}</Text>
               </Text>
               <Text style={styles.textbox}>
-                <Text style={styles.key}>Entry Time:</Text>
+                <Text style={styles.key}>Arrival Time:</Text>
                 <Text style={{ fontSize: 17, color: "green" }}>
                   {" "}
                   {receivedData.entry_time}
                 </Text>
               </Text>
-              <Text style={styles.textbox}>
+              {/* <Text style={styles.textbox}>
                 <Text style={styles.key}>Exit Time:</Text>
                 <Text style={{ fontSize: 17, color: "red" }}>
                   {" "}
                   {receivedData.exit_time}
                 </Text>
-              </Text>
+              </Text> */}
               {receivedData.authorization_status ? (
                 <Text style={styles.textbox}>
                   <Text style={styles.key}>Status:</Text>

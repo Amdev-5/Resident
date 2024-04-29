@@ -1,95 +1,144 @@
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
-  Alert,
   Text,
-  FlatList,
-  Image,
   TextInput,
   TouchableOpacity,
-  Pressable,
-  Modal,
+  Image,
+  FlatList,
   StyleSheet,
   Dimensions,
-  Button,
 } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
-import { Icon } from "../components/";
 import { useNavigation } from "@react-navigation/native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Icon } from "../components/";
 import ModalDropdown from "react-native-modal-dropdown";
 import MenuWrapper from "./MenuWrapper";
+import { API_Url2 } from "../utils/API";
 
 const Waiting = () => {
   const navigation = useNavigation();
   const { width } = Dimensions.get("screen");
-  const [visible, setVisible] = useState(false);
   const [data, setData] = useState([]);
   const [search, setSearch] = useState("");
   const searchRef = useRef();
-  const [oldData, setOldData] = useState([]);
-  const [selectedFilter, setSelectedFilter] = useState(0);
-  const [waiting, setWaiting] = useState(false);
-  const [visitorType, setVisitorType] = useState("resident");
-  const [dotClicks, setDotClicks] = useState({});
-  const [modalVisible, setModalVisible] = useState();
-  // useEffect(() => {
-  //   fetch('https://fakestoreapi.com/products')
-  //     .then(res => res.json())
-  //     .then(response => {
-  //     //   console.log(response);
-  //       setData(response);
-  //       setOldData(response);
-  //     });
-  // }, []);
-  const searchFilterFunction = (text) => {
-    // Check if searched text is not blank
-    if (text !== "") {
-      let tempData = data.filter((item) => {
-        return item.title.toLowerCase().indexOf(text.toLowerCase()) > -1;
-      });
-      setData(tempData);
-    } else {
-      setData(oldData);
+  const [visitorData, setVisitorData] = useState([]);
+  const [token, setToken] = useState(null);
+  const [selectedLane, setSelectedLane] = useState("");
+  const [lanes, setLanes] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem("@token_resident");
+      if (token !== null) {
+        setToken(token);
+      } else {
+        console.log("Token not found in local storage.");
+      }
+    } catch (error) {
+      console.error("Error retrieving token from local storage:", error);
+    }
+  };
+
+  // const fetchData = async () => {
+  //   try {
+  //     await fetchToken();
+  //     if (token) {
+  //       const response = await axios.get(API_Url2 + "/getDevices", {
+  //         headers: {
+  //           "x-access-token": token,
+  //         },
+  //       });
+  //       const entryDevices = response.data.entry_devices;
+  //       const laneNames = entryDevices.map((device) => device.lane_name);
+  //       setLanes(laneNames);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching data:", error);
+  //   }
+  // };
+
+  const editItem = (item) => {
+    // Navigate to AddNewPerson screen with the item data
+    navigation.navigate("EditNewPerson", { editData: item });
+    console.log(item);
+  };
+
+  const fetchVisitorData = async () => {
+    try {
+      const response = await axios.get(
+        API_Url2 + "/getArrivedVisitorbyunit?unit_id=1",
+        {
+          headers: {
+            "x-access-token": token,
+          },
+        }
+      );
+      const filteredData = response.data.data.map((item) => ({
+        name: item.name,
+        id: item.id,
+        visitor_type: item.purpose,
+        visiting_place: item.visiting_place,
+        image: item.image,
+        vehicle_number: item.vehicle_no,
+        phone_number: item.contact_no,
+        lane_name: item.lane_name,
+        lane_id: item.lane_id,
+        visiting_place_id: item.unit_id,
+        status: item.approval_request_status,
+      }));
+
+      // "approval_request_status": 1,
+      //       "approver_type": 1,
+      //       "contact_no": "1010101010",
+      //       "id": 93,
+      //       "image": null,
+      //       "lane_id": null,
+      //       "name": "Amit",
+      //       "purpose": "Delivery",
+      //       "vehicle_no": "KA 101010",
+      //       "visiting_place": "The Associated Cement Companyl"
+      setVisitorData(filteredData);
+      setData(filteredData); // Initialize data with visitorData
+    } catch (error) {
+      console.error("Error fetching data: ", error);
     }
   };
 
   useEffect(() => {
-    // Initialize dotClicks state for each item
-    let clicks = {};
-    data.forEach((item) => {
-      clicks[item.id] = false; // Initialize click status for each item
-    });
-    setDotClicks(clicks);
-  }, [data]);
+    // fetchData();
+    fetchVisitorData();
+  }, []);
 
-  const handleDotClick = (id) => {
-    setDotClicks((prevClicks) => ({
-      ...prevClicks,
-      [id]: !prevClicks[id], // Toggle click status for the specific item
-    }));
+  const searchFilterFunction = (text) => {
+    setSearch(text);
+    const filteredData = visitorData.filter(
+      (item) =>
+        item.name.toLowerCase().includes(text.toLowerCase()) ||
+        item.vehicle_number.toLowerCase().includes(text.toLowerCase())
+    );
+    setData(filteredData);
   };
 
-  console.log(handleDotClick);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // await fetchData();
+    await fetchVisitorData();
+    setRefreshing(false);
+  };
 
-  const DropDownData = ["Hello", "World", "This", "Is", "A", "Test"];
   return (
     <View style={{ flex: 1 }}>
-      <View
-        style={{
-          width: "100%",
-          flexDirection: "row",
-          alignItems: "center",
-          height: 70,
-          marginTop: 20,
-          justifyContent: "space-between",
-        }}
-      >
+      {/* Search bar */}
+      <View style={{ flexDirection: "row", alignItems: "center", height: 70 }}>
         <View
           style={{
             width: "91%",
             height: 50,
             borderRadius: 10,
             borderWidth: 0.2,
-
             flexDirection: "row",
             alignItems: "center",
             marginLeft: 15,
@@ -101,7 +150,7 @@ const Waiting = () => {
           />
           <TextInput
             ref={searchRef}
-            placeholder="search Visitors here..."
+            placeholder="Search Visitors here..."
             style={{ width: "76%", height: 50 }}
             value={search}
             onChangeText={(txt) => {
@@ -126,13 +175,10 @@ const Waiting = () => {
           )}
         </View>
       </View>
+
+      {/* Lane selection dropdown */}
       {/* <View
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 10,
-        }}
+        style={{ justifyContent: "center", alignItems: "center", padding: 10 }}
       >
         <ModalDropdown
           style={{
@@ -141,7 +187,7 @@ const Waiting = () => {
             padding: 10,
             width: width - 32,
           }}
-          options={["Lane 1", "Lane 2", "Lane 3", "Lane 4", "Lane 5"]}
+          options={lanes}
           defaultValue="Select Lane"
           textStyle={{ fontSize: 16, color: "black", textAlign: "center" }}
           dropdownStyle={{
@@ -149,102 +195,16 @@ const Waiting = () => {
             borderWidth: 1,
             borderColor: "black",
           }}
-          onSelect={(index, value) => setVisitorType(value)}
+          onSelect={(index, value) => setSelectedLane(value)}
         />
       </View> */}
+
+      {/* FlatList */}
       <FlatList
-        data={[
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 1,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorization Required",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Sai Kiran K",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 2,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorized",
-            visitor_type: "Cab",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 3,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorization Required",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Sai Kiran K",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 4,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorized",
-            visitor_type: "Cab",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 5,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorization Required",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 6,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorized",
-            visitor_type: "Cab",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 7,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorized",
-            visitor_type: "Cab",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 8,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            authorization_status: "Authorized",
-            visitor_type: "Tyre",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-        ]}
+        data={data}
         showsVerticalScrollIndicator={false}
-        Data={DropDownData}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
         renderItem={({ item, index }) => {
           return (
             <TouchableOpacity
@@ -263,8 +223,9 @@ const Waiting = () => {
                 flexDirection: "row",
               }}
             >
+              {/* Image */}
               <Image
-                source={{ uri: item.image }}
+                source={{ uri: API_Url2 + "/img/" + item.image }}
                 style={{
                   width: 60,
                   height: "90%",
@@ -272,52 +233,54 @@ const Waiting = () => {
                   borderRadius: 10,
                 }}
               />
+              {/* Details */}
               <View style={{ flex: 1, flexDirection: "row" }}>
                 <View style={{ width: "80%", flex: 2 }}>
-                <Text style={{ marginLeft: 10 }}>
-                  <Text style={{ fontWeight: "bold" }}>Name:</Text>
-                  <Text> {item.name}</Text>
-                </Text>
-                <Text style={{ marginLeft: 10 }}>
-                  <Text style={{ fontWeight: "bold" }}>Phone:</Text>
-                  <Text> {item.phone_number}</Text>
-                </Text>
-                <Text style={{ marginLeft: 10 }}>
-                  <Text style={{ fontWeight: "bold" }}>Visiting Place:</Text>
-                  <Text> {item.visiting_place}</Text>
-                </Text>
-                <Text style={{ marginLeft: 10 }}>
-                  <Text style={{ fontWeight: "bold" }}>Visitor Type:</Text>
-                  <Text> {item.visitor_type}</Text>
-                </Text>
-
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        marginLeft: 10,
-                        color: item.authorization_status === "Authorized" ? "green" : "red",
-                      }}
-                    >
-                      {item.authorization_status}
-                    </Text>
-                  </View>
+                  <Text style={{ marginLeft: 10 }}>
+                    <Text style={{ fontWeight: "bold" }}>Name:</Text>
+                    <Text> {item.name}</Text>
+                  </Text>
+                  <Text style={{ marginLeft: 10 }}>
+                    <Text style={{ fontWeight: "bold" }}>Phone:</Text>
+                    <Text> {item.phone_number}</Text>
+                  </Text>
+                  {/* <Text style={{ marginLeft: 10 }}>
+                    <Text style={{ fontWeight: "bold" }}>Visiting Place:</Text>
+                    <Text> {item.visiting_place}</Text>
+                  </Text> */}
+                  <Text style={{ marginLeft: 10 }}>
+                    <Text style={{ fontWeight: "bold" }}>Visitor Type:</Text>
+                    <Text> {item.visitor_type}</Text>
+                  </Text>
+                  <Text style={{ marginLeft: 10 }}>
+                    <Text style={{ fontWeight: "bold" }}>Status:</Text>
+                    {item.status === 0 && (
+                      <Text style={{ color: "red" }}> Rejected</Text>
+                    )}
+                    {item.status === 1 && (
+                      <Text style={{ color: "green" }}> Approved</Text>
+                    )}
+                    {item.status === 2 && (
+                      <Text style={{ color: "#E1AD01" }}> Waiting</Text>
+                    )}
+                  </Text>
                 </View>
-                  <MenuWrapper />
+                {/* Menu */}
+                {/* <MenuWrapper
+                  // onEdit={() => editItem(item)}
+                  visitorId={item.id}
+                  handleRefresh={handleRefresh} // Pass handleRefresh as a prop
+                /> */}
               </View>
             </TouchableOpacity>
           );
         }}
       />
+
+      {/* Add new person button */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate("AddNewPerson")} // Navigate to AddNewPerson screen
+        onPress={() => navigation.navigate("AddNewPerson")}
       >
         <Icon
           family="entypo"
@@ -337,7 +300,6 @@ export default Waiting;
 const styles = StyleSheet.create({
   fab: {
     position: "absolute",
-    display: "flex",
     width: 56,
     height: 56,
     alignItems: "center",
@@ -348,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     elevation: 8,
   },
+
   fabIcon: {
     fontSize: 40,
     color: "white",

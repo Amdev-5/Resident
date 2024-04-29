@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ImageBackground,
   Image,
@@ -26,11 +26,30 @@ const Pro = ({ navigation }) => {
   const [password, setPassword] = useState("");
   const [serverId, setServerId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [fcmToken, setFcmToken] = useState(null);
 
   const toggleShowPassword = () => {
     setShowPassword(!showPassword);
   };
 
+  useEffect(() => {
+    const fetchFcmToken = async () => {
+      try {
+        const fcmToken = await AsyncStorage.getItem("@resident_fcm_token");
+        
+        if (fcmToken !== null) {
+          console.log("FCMToken retrieved successfully:", fcmToken);
+          setFcmToken(fcmToken); // Set the fcmToken in state
+        } else {
+          console.log("FCMToken not found in local storage.");
+        }
+      } catch (error) {
+        console.error("Error retrieving FCM token from local storage:", error);
+      }
+    };
+
+    fetchFcmToken();
+  }, []);
   const handleLogin = async () => {
     try {
       const response = await axios.post(
@@ -38,6 +57,7 @@ const Pro = ({ navigation }) => {
         {
           username: username,
           password: password,
+          fcm_token: fcmToken,
         },
         {
           headers: {
@@ -47,12 +67,15 @@ const Pro = ({ navigation }) => {
         }
       );
 
+
+
       const result = response.data;
+      console.log("Log In Payload",result)
 
       if (result.type === 1) {
         // Successful login
         const token = result.token;
-        await AsyncStorage.setItem("@token", token); // Store the token in AsyncStorage
+        await AsyncStorage.setItem("@token_resident", token); // Store the token in AsyncStorage
         navigation.navigate("App", token); // Navigate to the next screen
       } else {
         // Failed login
@@ -125,7 +148,7 @@ const Pro = ({ navigation }) => {
                   shadowless
                   style={styles.button}
                   color={argonTheme.COLORS.WHITE}
-                  onPress={() => navigation.navigate("App")} // Call handleLogin function on button press
+                  onPress={handleLogin} // Call handleLogin function on button press
                 >
                   <Text style={styles.buttonText}>LOGIN</Text>
                 </Button>

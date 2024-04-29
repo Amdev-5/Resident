@@ -16,6 +16,7 @@ const { width } = Dimensions.get("screen");
 import ModalDropdown from "react-native-modal-dropdown";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_Url2 } from "../utils/API";
 
 const Profile = () => {
   const [visible, setVisible] = useState(false);
@@ -36,7 +37,7 @@ const Profile = () => {
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const token = await AsyncStorage.getItem("@token");
+        const token = await AsyncStorage.getItem("@token_resident");
         if (token !== null) {
           console.log("Token retrieved successfully Profile:", token);
           setToken(token); // Set the token in state
@@ -56,7 +57,7 @@ const Profile = () => {
     // fetch(
     //   `http://192.168.0.83:10000/getVehicleList?page_no=1&page_limit=10&society_id=1&lane_id=${selectedLaneId}&unclear_plates=true&no_plates=true`,
     fetch(
-      `http://192.168.0.116:10000/getVehicleList?page_no=1&page_limit=100&society_id=1&lane_id=9&unclear_plates=true&no_plates=true`,
+      API_Url2+`/getVehicleList?page_no=1&page_limit=100&society_id=1&lane_id=9&unclear_plates=true&no_plates=true`,
       {
         headers: {
           "x-access-token": token, // Include the token in the header
@@ -84,7 +85,7 @@ const Profile = () => {
   }, [selectedLaneId, token]);
 
   useEffect(() => {
-    fetch("http://192.168.0.116:10000/getDevices", {
+    fetch(API_Url2+"/getDevices", {
       headers: {
         "x-access-token": token,
       },

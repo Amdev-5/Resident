@@ -1,3 +1,4 @@
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -5,57 +6,163 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
-  Pressable,
-  Alert,
-  Dimensions,
-  Modal,
   StyleSheet,
-  Button,
+  Alert,
 } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/";
 import { useNavigation } from "@react-navigation/native";
-import ModalScreen from "./ModalScreen";
-const { width } = Dimensions.get("screen");
-import { useRoute } from "@react-navigation/native";
+import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_Url2 } from "../utils/API";
 
 const Inside = () => {
-  const [data, setData] = useState([]);
+  const [visitorData, setVisitorData] = useState([]);
   const [search, setSearch] = useState("");
   const searchRef = useRef();
-  const [oldData, setOldData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const navigation = useNavigation();
+  const [token, setToken] = useState(null);
+  const [data,setData] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // useEffect(() => {
-  //   fetch('https://fakestoreapi.com/products')
-  //     .then(res => res.json())
-  //     .then(response => {
-  //     //   console.log(response);
-  //       setData(response);
-  //       setOldData(response);
-  //     });
-  // }, []);
-  const searchFilterFunction = (text) => {
-    // Check if searched text is not blank
-    if (text !== "") {
-      let tempData = data.filter((item) => {
-        return item.title.toLowerCase().indexOf(text.toLowerCase()) > -1;
-      });
-      setData(tempData);
-    } else {
-      setData(oldData);
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem("@token_resident");
+        if (token !== null) {
+          // console.log("Token retrieved successfully:", token);
+          setToken(token); // Set the token in state
+        } else {
+          console.log("Token not found in local storage.");
+        }
+      } catch (error) {
+        console.error("Error retrieving token from local storage:", error);
+      }
+    };
+
+    fetchToken();
+  }, []);
+  // console.log(token)
+  const fetchData = async () => {
+    try {
+      const response = await axios.get(
+        API_Url2+"/getWaitingVisitorbyunit?unit_id=1"
+      );
+      const formattedData = response.data.data.map((item) => ({
+        name: item.name,
+        id: item.id,
+        visitor_type: item.purpose,
+        visiting_place: item.unit_name,
+        image: item.image,
+        vehicle_number: item.vehicle_no,
+        phone_number: item.contact_no,
+        entry_time: item.date,
+        isApproved: false,
+      }));
+      setVisitorData(formattedData);
+      setData(formattedData);
+    } catch (error) {
+      console.error("Error fetching data: ", error);
     }
   };
 
-  const handleVisitorClick = () => {
-    navigation.navigate("AddNewPerson");
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const searchFilterFunction = (text) => {
+    setSearch(text);
+    const filteredData = visitorData.filter(
+      (item) =>
+        item.name.toLowerCase().includes(text.toLowerCase()) ||
+        item.vehicle_number.toLowerCase().includes(text.toLowerCase())
+    );
+    setData(filteredData);
   };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+    setRefreshing(false);
+  };
+  // Function to fetch visitor data
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     try {
+  //       const response = await axios.get(
+  //         "http://192.168.0.116:10000/getWaitingVisitorbyunit?unit_id=1",
+  //         {}
+  //       );
+  //       // console.log(response)
+  //       const formattedData = response.data.data.map((item) => ({
+  //         name: item.name,
+  //         id: item.id,
+  //         visitor_type: item.purpose,
+  //         visiting_place: item.unit_name,
+  //         image: item.image,
+  //         vehicle_number: item.vehicle_no,
+  //         phone_number: item.contact_no,
+  //         entry_time: item.date,
+  //         isApproved: false, // Add a state for each item to track approval
+  //       }));
+  //       setVisitorData(formattedData);
+  //       setFilteredData(formattedData);
+  //     } catch (error) {
+  //       console.error("Error fetching data: ", error);
+  //     }
+  //   };
+
+  //   fetchData();
+  // }, []);
+
+  // Function to handle approval or rejection
+  const handleApproval = async (id, status) => {
+    // console.log(id,status)
+    try {
+      const requestStatus = status ? 1 : 0;
+
+      const response = await axios.post(
+        API_Url2+"/update_request",
+        {
+          visitor_id: id,
+          request_status: requestStatus,
+        },
+        {
+          headers: {
+            "x-access-token": token,
+          },
+        }
+      );
+      //console.log(response);
+
+      // If request is successful, update the local state
+      if (response.data.status === 1) {
+        const updatedData = visitorData.map((item) =>
+          item.id === id ? { ...item, isApproved: requestStatus === 1 } : item
+        );
+        setVisitorData(updatedData);
+        Alert.alert("Success");
+      } else {
+        console.error("Error updating request status: ", response.data.message);
+      }
+    } catch (error) {
+      console.error("Error updating request status: ", error);
+    }
+  };
+
+  // Function to filter data based on search query
+  // const searchFilterFunction = (text) => {
+  //   setSearch(text);
+  //   const filteredData = visitorData.filter((item) =>
+  //     item.name.toLowerCase().includes(text.toLowerCase())
+  //   );
+  //   setFilteredData(filteredData);
+  // };
+
   return (
     <View style={{ flex: 1 }}>
       <View
         style={{
-          width: "100%",
           flexDirection: "row",
           alignItems: "center",
           height: 70,
@@ -69,7 +176,6 @@ const Inside = () => {
             height: 50,
             borderRadius: 10,
             borderWidth: 0.2,
-
             flexDirection: "row",
             alignItems: "center",
             marginLeft: 15,
@@ -81,21 +187,17 @@ const Inside = () => {
           />
           <TextInput
             ref={searchRef}
-            placeholder="search Visitors here..."
+            placeholder="Search visitors here..."
             style={{ width: "76%", height: 50 }}
             value={search}
-            onChangeText={(txt) => {
-              searchFilterFunction(txt);
-              setSearch(txt);
-            }}
+            onChangeText={searchFilterFunction}
           />
-          {search == "" ? null : (
+          {search === "" ? null : (
             <TouchableOpacity
               style={{ marginRight: 15 }}
               onPress={() => {
                 searchRef.current.clear();
                 searchFilterFunction("");
-                setSearch("");
               }}
             >
               <Image
@@ -107,205 +209,34 @@ const Inside = () => {
         </View>
       </View>
       <FlatList
-        data={[
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 1,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 2,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Cab",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 3,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Delivery",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 4,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Housekeeper",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 5,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 6,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 7,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 8,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 9,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 10,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Dilip Ranjan",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 11,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-          {
-            name: "Raghav Tiwari",
-            visiting_place: "Block 4, Phase 1, Appart-420",
-            id: 12,
-            image:
-              "https://gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-            entry_time: "13/01/2024, 4:07 PM",
-            exit_time: "13/01/2024, 6:15 PM",
-            visitor_type: "Guest",
-            vehicle_number: "KA 12D 4660",
-            phone_number: "+91 9680485959",
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item, index }) => {
-          return (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() =>
-                navigation.navigate("ModalScreen", { personData: item })
-              }
-              style={{
-                width: "90%",
-                borderRadius: 10,
-                borderWidth: 0.5,
-                alignSelf: "center",
-                marginTop: 10,
-                marginBottom: index == data.length - 1 ? 20 : 0,
-                alignItems: "center",
-                flexDirection: "row",
-              }}
-            >
+        data={data}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("ModalScreen", { personData: item })
+            }
+            style={{
+              width: "90%",
+              borderRadius: 10,
+              borderWidth: 0.5,
+              alignSelf: "center",
+              marginTop: 10,
+            }}
+          >
+            <View style={{ flexDirection: "row", padding: 10 }}>
               <Image
                 source={{ uri: item.image }}
-                style={{
-                  width: 60,
-                  height: "90%",
-                  marginLeft: 10,
-                  borderRadius: 10,
-                }}
+                style={{ width: 60, height: 60, borderRadius: 10 }}
               />
-              <View style={{ width: "80%" }}>
-                <Text style={{ marginLeft: 10, marginTop: 10 }}>
-                  <Text style={{ fontWeight: "bold" }}>Vechile Number:</Text>
-                  <Text> {item.vehicle_number}</Text>
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontWeight: "bold" }}>{item.name}</Text>
+                <Text>Vehicle Number: {item.vehicle_number}</Text>
+                <Text>Visiting Type: {item.visitor_type}</Text>
+                <Text style={{ color: "green" }}>
+                  Entry Time: {item.entry_time}
                 </Text>
-                <Text style={{ marginLeft: 10 }}>
-                  <Text style={{ fontWeight: "bold" }}>Name:</Text>
-                  <Text> {item.name}</Text>
-                </Text>
-                <Text style={{ marginLeft: 10 }}>
-                  <Text style={{ fontWeight: "bold" }}>Visiting Type:</Text>
-                  <Text> {item.visitor_type}</Text>
-                </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginBottom: 10,
-                  }}
-                >
-                  <Text style={{ marginLeft: 10 }}>
-                    <Text style={{ fontWeight: "bold" }}>Entry Time:</Text>
-                    <Text style={{ color: "green" }}> {item.entry_time}</Text>
-                  </Text>
-                </View>
               </View>
               <View
                 style={{
@@ -314,6 +245,7 @@ const Inside = () => {
                 }}
               >
                 <TouchableOpacity
+                  onPress={() => handleApproval(item.id, true)} // Approve
                   style={{
                     borderWidth: 1,
                     paddingHorizontal: 7,
@@ -330,12 +262,14 @@ const Inside = () => {
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
+                  onPress={() => handleApproval(item.id, false)} // Reject
                   style={{
                     borderWidth: 1,
                     paddingHorizontal: 7,
                     padding: "18.9%",
                     borderRadius: 0,
-                    borderBottomRightRadius: 10,
+                    borderBottomRadius: 10,
+                    
                   }}
                 >
                   <Icon
@@ -346,13 +280,17 @@ const Inside = () => {
                   />
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          );
-        }}
+            </View>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item, index) =>
+          item.id ? item.id.toString() : index.toString()
+        }
       />
-      {/* <TouchableOpacity
+       {/* Add new person button */}
+       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate("AddNewPerson")} // Navigate to AddNewPerson screen
+        onPress={() => navigation.navigate("AddNewPerson")}
       >
         <Icon
           family="entypo"
@@ -362,7 +300,8 @@ const Inside = () => {
             color: "white",
           }}
         />
-      </TouchableOpacity> */}
+      </TouchableOpacity>
+      
     </View>
   );
 };
